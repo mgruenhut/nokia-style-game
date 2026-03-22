@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nokia Snake - Cravings Edition</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+  }
+
+  .phone {
+    background: #2d2d2d;
+    border-radius: 30px 30px 40px 40px;
+    padding: 20px 18px 30px 18px;
+    box-shadow:
+      0 0 0 3px #1a1a1a,
+      0 0 0 6px #3a3a3a,
+      0 20px 60px rgba(0,0,0,0.8),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    width: 260px;
+  }
+
+  .speaker-top {
+    width: 60px;
+    height: 6px;
+    background: #1a1a1a;
+    border-radius: 3px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .speaker-top::before {
+    content: '';
+    position: absolute;
+    top: 1px; left: 4px; right: 4px;
+    height: 1px;
+    background: repeating-linear-gradient(90deg, #333 0px, #333 2px, transparent 2px, transparent 4px);
+  }
+
+  .screen-bezel {
+    background: #111;
+    border-radius: 8px;
+    padding: 8px;
+    width: 224px;
+    box-shadow:
+      inset 0 2px 8px rgba(0,0,0,0.9),
+      0 1px 0 rgba(255,255,255,0.03);
+  }
+
+  .screen {
+    background: #8bac0f;
+    width: 208px;
+    height: 186px;
+    position: relative;
+    overflow: hidden;
+    image-rendering: pixelated;
+  }
+
+  /* LCD scanline effect */
+  .screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 3px
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  .ui-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0 4px;
+  }
+
+  .nav-button {
+    width: 50px;
+    height: 50px;
+    background: radial-gradient(circle at 40% 30%, #555, #2a2a2a);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    box-shadow:
+      0 4px 8px rgba(0,0,0,0.6),
+      inset 0 1px 0 rgba(255,255,255,0.1),
+      inset 0 -1px 0 rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+  }
+
+  .nav-button:active { transform: scale(0.93); }
+
+  .dpad {
+    position: relative;
+    width: 90px;
+    height: 90px;
+  }
+
+  .dpad-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    height: 30px;
+    background: radial-gradient(circle at 40% 30%, #555, #222);
+    border-radius: 50%;
+    z-index: 2;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  }
+
+  .dpad-btn {
+    position: absolute;
+    background: linear-gradient(180deg, #444, #222);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    box-shadow:
+      0 3px 6px rgba(0,0,0,0.5),
+      inset 0 1px 0 rgba(255,255,255,0.08);
+    transition: filter 0.1s;
+    color: #666;
+    font-size: 10px;
+  }
+
+  .dpad-btn:active { filter: brightness(0.7); }
+
+  .dpad-up {
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 30px; height: 32px;
+    border-radius: 6px 6px 2px 2px;
+  }
+
+  .dpad-down {
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 30px; height: 32px;
+    border-radius: 2px 2px 6px 6px;
+  }
+
+  .dpad-left {
+    left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 32px; height: 30px;
+    border-radius: 6px 2px 2px 6px;
+  }
+
+  .dpad-right {
+    right: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 32px; height: 30px;
+    border-radius: 2px 6px 6px 2px;
+  }
+
+  .side-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .small-btn {
+    width: 36px;
+    height: 18px;
+    background: linear-gradient(180deg, #444, #222);
+    border-radius: 9px;
+    cursor: pointer;
+    user-select: none;
+    box-shadow:
+      0 3px 6px rgba(0,0,0,0.5),
+      inset 0 1px 0 rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    color: #777;
+    letter-spacing: 0.5px;
+    transition: filter 0.1s;
+  }
+
+  .small-btn:active { filter: brightness(0.7); }
+
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    width: 100%;
+    padding: 0 4px;
+  }
+
+  .key {
+    background: linear-gradient(180deg, #3a3a3a, #222);
+    border-radius: 6px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    color: #bbb;
+    cursor: pointer;
+    user-select: none;
+    box-shadow:
+      0 3px 6px rgba(0,0,0,0.5),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    transition: filter 0.1s;
+  }
+
+  .key:active { filter: brightness(0.7); }
+
+  .key-sub {
+    font-size: 6px;
+    color: #555;
+    display: block;
+    line-height: 1;
+  }
+
+  .nokia-logo {
+    font-size: 9px;
+    font-weight: bold;
+    color: #555;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: -4px;
+  }
+
+  /* Overlay screens */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: #8bac0f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+  }
+
+  .overlay.hidden { display: none; }
+
+  .overlay-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: #0f380f;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .overlay-sub {
+    font-size: 9px;
+    color: #306230;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .overlay-score {
+    font-size: 18px;
+    font-weight: bold;
+    color: #0f380f;
+    font-family: 'Courier New', monospace;
+    margin: 6px 0;
+  }
+
+  .blink {
+    animation: blink 0.8s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="speaker-top"></div>
+
+  <div class="screen-bezel">
+    <div class="screen" id="screen">
+      <canvas id="gameCanvas" width="208" height="186"></canvas>
+
+      <!-- Start screen -->
+      <div class="overlay" id="startScreen">
+        <div class="overlay-title">SNAKE</div>
+        <div style="font-size:24px; color:#0f380f; margin:4px 0;">🐍🤰</div>
+        <div class="overlay-sub" style="margin-bottom:6px;">CRAVINGS EDITION</div>
+        <div class="overlay-sub" style="margin-bottom:8px;">
+          🥒+1 &nbsp; 🍕+2 &nbsp; 🍦+3 &nbsp; 🍫+4
+        </div>
+        <div class="overlay-sub blink">Press 5 or OK<br>to start</div>
+      </div>
+
+      <!-- Game over screen -->
+      <div class="overlay hidden" id="gameOverScreen">
+        <div class="overlay-title">GAME OVER</div>
+        <div class="overlay-sub">Score</div>
+        <div class="overlay-score" id="finalScore">0</div>
+        <div class="overlay-sub" id="highScoreMsg"></div>
+        <div class="overlay-sub blink" style="margin-top:8px;">Press 5 to retry</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nokia-logo">Nokia</div>
+
+  <div class="ui-row">
+    <div class="side-buttons">
+      <div class="small-btn" onclick="softLeft()">MENU</div>
+      <div class="small-btn" onclick="softLeft()">BACK</div>
+    </div>
+
+    <div class="dpad">
+      <div class="dpad-btn dpad-up"    onclick="changeDir(0,-1)">▲</div>
+      <div class="dpad-btn dpad-down"  onclick="changeDir(0,1)">▼</div>
+      <div class="dpad-btn dpad-left"  onclick="changeDir(-1,0)">◀</div>
+      <div class="dpad-btn dpad-right" onclick="changeDir(1,0)">▶</div>
+      <div class="dpad-center"         onclick="pressOk()"></div>
+    </div>
+
+    <div class="side-buttons">
+      <div class="small-btn" onclick="pressOk()">OK</div>
+      <div class="small-btn">CLR</div>
+    </div>
+  </div>
+
+  <div class="keypad">
+    <div class="key">1<span class="key-sub">.,!</span></div>
+    <div class="key">2<span class="key-sub">ABC</span></div>
+    <div class="key">3<span class="key-sub">DEF</span></div>
+    <div class="key">4<span class="key-sub">GHI</span></div>
+    <div class="key" onclick="pressOk()">5<span class="key-sub">JKL</span></div>
+    <div class="key">6<span class="key-sub">MNO</span></div>
+    <div class="key">7<span class="key-sub">PQRS</span></div>
+    <div class="key">8<span class="key-sub">TUV</span></div>
+    <div class="key">9<span class="key-sub">WXYZ</span></div>
+    <div class="key">*</div>
+    <div class="key">0<span class="key-sub">+</span></div>
+    <div class="key">#</div>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const COLS = 26;
+  const ROWS = 23;
+  const CELL = 8;
+
+  const COLOR = {
+    bg:         '#9bbc0f',
+    grid:       '#8bac0f',
+    snake:      '#0f380f',
+    snakeInner: '#306230',
+    border:     '#0f380f',
+  };
+
+  // ── Pregnancy cravings ──────────────────────────────────────────────────────
+  // Each pixel map is 8 rows × 8 chars ('1'=dark, '0'=light)
+  const CRAVINGS = [
+    {
+      name: 'Pickle', pts: 1, quip: 'Classic!',
+      px: [
+        '00111100',
+        '01111110',
+        '11111111',
+        '11010111',
+        '11111111',
+        '11010111',
+        '01111110',
+        '00111100',
+      ]
+    },
+    {
+      name: 'Watermelon', pts: 2, quip: 'So fresh!',
+      px: [
+        '01111110',
+        '11111111',
+        '11010111',
+        '11111111',
+        '11010111',
+        '01111110',
+        '00111100',
+        '00000000',
+      ]
+    },
+    {
+      name: 'Pizza', pts: 2, quip: 'Cheesy!',
+      px: [
+        '00000110',
+        '00011110',
+        '00111101',
+        '01111110',
+        '11011111',
+        '11111111',
+        '01111110',
+        '00000000',
+      ]
+    },
+    {
+      name: 'Ice Cream', pts: 3, quip: 'Sweet tooth!',
+      px: [
+        '01111110',
+        '11111111',
+        '11111111',
+        '01111110',
+        '00111100',
+        '00011000',
+        '00111100',
+        '01111110',
+      ]
+    },
+    {
+      name: 'Tacos', pts: 3, quip: 'Spicy!',
+      px: [
+        '01111110',
+        '11111111',
+        '10101011',
+        '11111111',
+        '01111110',
+        '00111100',
+        '00111100',
+        '00000000',
+      ]
+    },
+    {
+      name: 'Chocolate', pts: 4, quip: 'Indulgent!',
+      px: [
+        '11111111',
+        '11111111',
+        '10110101',
+        '11111111',
+        '10110101',
+        '11111111',
+        '10110101',
+        '11111111',
+      ]
+    },
+  ];
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  let snake, dir, nextDir, food, score, highScore, gameState, loopId;
+  let toast = null; // { text, timer }
+
+  highScore = 0;
+  gameState = 'start';
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  function initGame() {
+    snake = [
+      { x: 13, y: 11 },
+      { x: 12, y: 11 },
+      { x: 11, y: 11 },
+    ];
+    dir     = { x: 1, y: 0 };
+    nextDir = { x: 1, y: 0 };
+    score   = 0;
+    toast   = null;
+    placeFood();
+  }
+
+  function placeFood() {
+    const craving = CRAVINGS[Math.floor(Math.random() * CRAVINGS.length)];
+    let pos;
+    do {
+      pos = {
+        x: Math.floor(Math.random() * COLS),
+        y: 1 + Math.floor(Math.random() * (ROWS - 2))
+      };
+    } while (snake.some(s => s.x === pos.x && s.y === pos.y));
+    food = { ...pos, craving };
+  }
+
+  // ── Controls ─────────────────────────────────────────────────────────────────
+  function changeDir(dx, dy) {
+    if (gameState !== 'playing') { startGame(); return; }
+    if (dx !== 0 && dir.x !== 0) return;
+    if (dy !== 0 && dir.y !== 0) return;
+    nextDir = { x: dx, y: dy };
+  }
+
+  function pressOk() {
+    if (gameState !== 'playing') startGame();
+  }
+
+  function softLeft() {}
+
+  // ── Game loop ────────────────────────────────────────────────────────────────
+  function startGame() {
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('gameOverScreen').classList.add('hidden');
+    initGame();
+    gameState = 'playing';
+    if (loopId) clearInterval(loopId);
+    loopId = setInterval(tick, 130);
+  }
+
+  function tick() {
+    dir = { ...nextDir };
+
+    const head = {
+      x: (snake[0].x + dir.x + COLS) % COLS,
+      y: snake[0].y + dir.y
+    };
+
+    if (head.y < 1 || head.y >= ROWS) { endGame(); return; }
+    if (snake.some(s => s.x === head.x && s.y === head.y)) { endGame(); return; }
+
+    snake.unshift(head);
+
+    if (head.x === food.x && head.y === food.y) {
+      const c = food.craving;
+      score += c.pts;
+      toast = { text: `${c.name}! +${c.pts}`, quip: c.quip, timer: 18 };
+      placeFood();
+    } else {
+      snake.pop();
+    }
+
+    if (toast) toast.timer--;
+
+    draw();
+  }
+
+  function endGame() {
+    clearInterval(loopId);
+    gameState = 'dead';
+    draw();
+
+    if (score > highScore) highScore = score;
+
+    document.getElementById('finalScore').textContent = score;
+    const msg = document.getElementById('highScoreMsg');
+    msg.textContent = score > 0 && score >= highScore
+      ? `New Best: ${highScore}`
+      : `Best: ${highScore}`;
+
+    document.getElementById('gameOverScreen').classList.remove('hidden');
+  }
+
+  // ── Drawing ───────────────────────────────────────────────────────────────────
+  function draw() {
+    const W = canvas.width;
+    const H = canvas.height;
+
+    // Background
+    ctx.fillStyle = COLOR.bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Checkerboard grid
+    ctx.fillStyle = COLOR.grid;
+    for (let r = 1; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++)
+        if ((r + c) % 2 === 0)
+          ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+
+    // HUD bar
+    ctx.fillStyle = COLOR.border;
+    ctx.fillRect(0, 0, W, CELL);
+
+    ctx.fillStyle = '#9bbc0f';
+    ctx.font = 'bold 6px "Courier New"';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(`SCR:${score}`, 3, CELL / 2);
+
+    // Show current craving pts hint in HUD centre
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#aacb3f';
+    ctx.fillText(`+${food.craving.pts}pts`, W / 2, CELL / 2);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#9bbc0f';
+    ctx.fillText(`HI:${highScore}`, W - 3, CELL / 2);
+
+    // Borders
+    ctx.fillStyle = COLOR.border;
+    ctx.fillRect(0, H - 1, W, 1);
+    ctx.fillRect(0, CELL, 1, H - CELL - 1);
+    ctx.fillRect(W - 1, CELL, 1, H - CELL - 1);
+
+    drawFood();
+    drawSnake();
+
+    if (toast && toast.timer > 0) drawToast();
+  }
+
+  function drawFood() {
+    const px = food.craving.px;
+    const ox = food.x * CELL;
+    const oy = food.y * CELL;
+    ctx.fillStyle = COLOR.border;
+    for (let r = 0; r < 8; r++)
+      for (let c = 0; c < 8; c++)
+        if (px[r][c] === '1')
+          ctx.fillRect(ox + c, oy + r, 1, 1);
+  }
+
+  function drawSnake() {
+    snake.forEach((seg, i) => {
+      const x = seg.x * CELL;
+      const y = seg.y * CELL;
+
+      if (i === 0) {
+        ctx.fillStyle = COLOR.snake;
+        ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+
+        // Directional eyes
+        ctx.fillStyle = COLOR.bg;
+        const ex = dir.x, ey = dir.y;
+        if      (ex ===  1) { ctx.fillRect(x+4,y+2,2,2); ctx.fillRect(x+4,y+5,2,2); }
+        else if (ex === -1) { ctx.fillRect(x+1,y+2,2,2); ctx.fillRect(x+1,y+5,2,2); }
+        else if (ey === -1) { ctx.fillRect(x+2,y+1,2,2); ctx.fillRect(x+5,y+1,2,2); }
+        else                { ctx.fillRect(x+2,y+4,2,2); ctx.fillRect(x+5,y+4,2,2); }
+      } else {
+        ctx.fillStyle = COLOR.snake;
+        ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+        ctx.fillStyle = '#306230';
+        ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+      }
+    });
+  }
+
+  function drawToast() {
+    const alpha = Math.min(1, toast.timer / 6); // fade last 6 ticks
+    const W = canvas.width;
+    const H = canvas.height;
+
+    // Banner background
+    ctx.fillStyle = `rgba(15,56,15,${alpha * 0.88})`;
+    ctx.fillRect(2, H - 18, W - 4, 16);
+
+    // Border
+    ctx.strokeStyle = `rgba(155,188,15,${alpha})`;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(2.5, H - 17.5, W - 5, 15);
+
+    ctx.font = 'bold 6px "Courier New"';
+    ctx.textBaseline = 'middle';
+    const cy = H - 10;
+
+    // Main craving text
+    ctx.fillStyle = `rgba(155,188,15,${alpha})`;
+    ctx.textAlign = 'left';
+    ctx.fillText(toast.text, 6, cy);
+
+    // Quip on right
+    ctx.fillStyle = `rgba(100,150,15,${alpha})`;
+    ctx.textAlign = 'right';
+    ctx.fillText(toast.quip, W - 6, cy);
+  }
+
+  // Initial blank draw
+  (function() {
+    ctx.fillStyle = COLOR.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  })();
+
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    switch(e.key) {
+      case 'ArrowUp':    e.preventDefault(); changeDir(0, -1); break;
+      case 'ArrowDown':  e.preventDefault(); changeDir(0,  1); break;
+      case 'ArrowLeft':  e.preventDefault(); changeDir(-1, 0); break;
+      case 'ArrowRight': e.preventDefault(); changeDir( 1, 0); break;
+      case 'Enter':
+      case ' ':
+      case '5':          e.preventDefault(); pressOk();        break;
+    }
+  });
+</script>
+</body>
+</html>
